@@ -1,22 +1,23 @@
+const BACKEND_URL =
+  "https://script.google.com/macros/s/AKfycbyb1aj0HrHbitbPMRwn1Agn22vayQ_hp7lc_6zln-bGy-qhIZGWM3LcFhhsldniaet5vA/exec";
 
-const chat=document.getElementById('chat');
-const input=document.getElementById('msg');
+async function askJarvis(message) {
+  try {
+    const response = await fetch(BACKEND_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message: message
+      })
+    });
 
-document.getElementById('send').onclick=()=>{
-  const t=input.value.trim();
-  if(!t)return;
-  add('YOU: '+t,'user');
-  input.value='';
-  add('J.A.R.V.I.S: Processing...','ai');
-  setTimeout(()=>{
-    chat.lastChild.innerText='J.A.R.V.I.S: Systems online. How may I assist you, Boss?';
-  },1000);
-};
+    const result = await response.json();
 
-function add(text,who){
-  const d=document.createElement('div');
-  d.className='msg '+who;
-  d.innerText=text;
-  chat.appendChild(d);
-  chat.scrollTop=chat.scrollHeight;
+    return result.reply || result.error;
+
+  } catch (error) {
+    return "Backend connection failed.";
+  }
 }
