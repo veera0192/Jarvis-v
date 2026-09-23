@@ -1,12 +1,16 @@
 const BACKEND_URL =
   "https://script.google.com/macros/s/AKfycbyZ5byE0L2YiU_m_GhqofO-xUdoBJFoUZn1UdhlULEaZoNkZl84PFSP-YVqgDEmiTTQ/exec";
 
-// HTML Elements
 const chat = document.getElementById("chat");
 const input = document.getElementById("msg");
-const micBtn = document.getElementById("mic-btn");
 
-// Add message to chat
+const sendBtn =
+  document.getElementById("send-btn") ||
+  document.getElementById("send") ||
+  [...document.querySelectorAll("button")].find(
+    (button) => button.textContent.trim().toLowerCase() === "send"
+  );
+
 function addMessage(text, sender) {
   if (!chat) return;
 
@@ -21,108 +25,88 @@ function addMessage(text, sender) {
   chat.scrollTop = chat.scrollHeight;
 }
 
-// Call JARVIS Backend
-async function callJarvis(message) {
-  const response = await fetch(BACKEND_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "text/plain;charset=utf-8"
-    },
-    body: JSON.stringify({
-      message: message
-    })
-  });
-
-  const responseText = await response.text();
-
-  let data;
-
-  try {
-    data = JSON.parse(responseText);
-  } catch (error) {
-    throw new Error("Backend returned an invalid response.");
-  }
-
-  if (!data.success) {
-    throw new Error(data.error || "Backend error.");
-  }
-
-  return data.reply;
-}
-
-// Ask JARVIS
 async function askJarvis() {
-  if (!input) return;
+  if (!input) {
+    alert("Message input not found");
+    return;
+  }
 
   const message = input.value.trim();
 
-  if (!message) return;
+  if (!message) {
+    alert("Please enter a message");
+    return;
+  }
 
   addMessage(message, "user");
 
   input.value = "";
 
-  addMessage("J.A.R.V.I.S: Thinking...", "jarvis");
+  addMessage("J.A.R.V.I.S Thinking...", "jarvis");
+
+  if (sendBtn) {
+    sendBtn.disabled = true;
+  }
 
   try {
-    const reply = await callJarvis(message);
+    const response = await fetch(BACKEND_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify({
+        message: message
+      })
+    });
+
+    const responseText = await response.text();
+
+    let data;
+
+    try {
+      data = JSON.parse(responseText);
+    } catch (error) {
+      throw new Error("Invalid backend response");
+    }
 
     const messages = chat.querySelectorAll(".jarvis-message");
     const lastMessage = messages[messages.length - 1];
 
-    if (lastMessage) {
-      lastMessage.textContent = reply;
+    if (!data.success) {
+      throw new Error(data.error || "Backend error");
     }
 
+    if (lastMessage) {
+      lastMessage.textContent = data.reply;
+    }
   } catch (error) {
     const messages = chat.querySelectorAll(".jarvis-message");
     const lastMessage = messages[messages.length - 1];
 
-    const errorMessage =
-      "J.A.R.V.I.S ERROR: " + error.message;
+    const errorText = "J.A.R.V.I.S ERROR: " + error.message;
 
     if (lastMessage) {
-      lastMessage.textContent = errorMessage;
+      lastMessage.textContent = errorText;
     } else {
-      addMessage(errorMessage, "jarvis");
+      addMessage(errorText, "jarvis");
     }
-
-    console.error("JARVIS Error:", error);
+  } finally {
+    if (sendBtn) {
+      sendBtn.disabled = false;
+    }
   }
 }
 
-// Enter key support
+if (sendBtn) {
+  sendBtn.addEventListener("click", askJarvis);
+} else {
+  console.error("SEND button not found");
+}
+
 if (input) {
   input.addEventListener("keydown", function (event) {
     if (event.key === "Enter") {
-      event.preventDefault();
       askJarvis();
     }
   });
-}
-
-// Voice input
-if (micBtn && "webkitSpeechRecognition" in window) {
-  const recognition = new webkitSpeechRecognition();
-
-  recognition.lang = "te-IN";
-  recognition.continuous = false;
-  recognition.interimResults = false;
-
-  micBtn.addEventListener("click", function () {
-    recognition.start();
-  });
-
-  recognition.onresult = function (event) {
-    const voiceText = event.results[0][0].transcript;
-
-    if (input) {
-      input.value = voiceText;
-      askJarvis();
     }
-  };
-
-  recognition.onerror = function () {
-    addMessage("Voice input failed. Please try again.", "jarvis");
-  };
-}
